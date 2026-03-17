@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบเสนอราคาซื้อรถ</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --blue:#185FA5;--blue-l:#E6F1FB;--blue-m:#B5D4F4;--blue-d:#0C447C;
+  --green:#3B6D11;--green-l:#EAF3DE;--green-m:#C0DD97;
+  --amber:#854F0B;--amber-l:#FAEEDA;--amber-m:#FAC775;
+  --red:#A32D2D;--red-l:#FCEBEB;--red-m:#F7C1C1;
+  --teams:#6264A7;
+  --bg:#F2F1EE;--border:rgba(0,0,0,0.09);--muted:#777;--text:#1C1C1E;
+  --white:#fff;--r:12px;--rs:8px;
+  --shadow:0 1px 4px rgba(0,0,0,0.07),0 0 0 0.5px rgba(0,0,0,0.05);
+  --shadow-lg:0 8px 32px rgba(0,0,0,0.18);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* CONFIG BANNER */
+.cfg-banner{background:#1a1a2e;color:#a8d8a8;padding:10px 20px;font-size:12px;font-family:'IBM Plex Mono',monospace;text-align:center;display:none}
+.cfg-banner.show{display:block}
+
+/* NAV */
+.nav{background:var(--white);border-bottom:0.5px solid var(--border);padding:0 20px;display:flex;align-items:stretch;justify-content:space-between;position:sticky;top:0;z-index:300;height:52px}
+.nav-logo{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
+.nav-logo em{color:var(--blue);font-style:normal}
+.nav-tabs{display:flex;height:100%}
+.nav-tab{padding:0 14px;font-size:13px;font-weight:500;font-family:'Sarabun',sans-serif;cursor:pointer;border:none;background:transparent;color:var(--muted);border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:5px}
+.nav-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.nav-tab:hover:not(.active){color:var(--text)}
+
+/* PAGE */
+.page{display:none}.page.active{display:block}
+.wrap{max-width:1200px;margin:0 auto;padding:24px 16px 80px}
+.wrap-sm{max-width:860px;margin:0 auto;padding:24px 16px 80px}
+
+/* CARD */
+.card{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);padding:22px;margin-bottom:16px}
+
+/* FORM */
+.fg{margin-bottom:12px}
+.fl{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;font-weight:500}
+.fi{width:100%;padding:9px 12px;font-size:14px;font-family:'Sarabun',sans-serif;border:0.5px solid var(--border);border-radius:var(--rs);background:var(--white);color:var(--text);transition:border-color .15s,box-shadow .15s;-webkit-appearance:none}
+.fi:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(24,95,165,0.1)}
+textarea.fi{resize:vertical;min-height:60px;line-height:1.5}
+.fi2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fi3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.fn{font-size:11px;color:var(--muted);margin-top:3px}
+.divider{height:0.5px;background:var(--border);margin:16px 0}
+.sec-lbl{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+
+/* BUTTONS */
+.btn{padding:9px 18px;font-size:13px;font-weight:600;font-family:'Sarabun',sans-serif;border-radius:var(--rs);cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:var(--blue-d)}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{background:#2d5a0d}
+.btn-red{background:var(--red);color:#fff}.btn-red:hover{background:#7a1f1f}
+.btn-outline{background:transparent;color:var(--blue);border:0.5px solid var(--blue)}.btn-outline:hover{background:var(--blue-l)}
+.btn-ghost{background:transparent;color:var(--muted);border:0.5px solid var(--border)}.btn-ghost:hover{background:var(--bg)}
+.btn-teams{background:var(--teams);color:#fff}.btn-teams:hover{background:#4f52a0}
+.btn-full{width:100%;justify-content:center;padding:12px 20px;font-size:14px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.ss{font-size:12px;padding:8px 12px;border-radius:var(--rs);margin-top:8px;display:none}
+.ss-ok{background:var(--green-l);color:var(--green)}.ss-err{background:var(--red-l);color:var(--red)}
+
+/* PHOTO UPLOAD 2x2 */
+.photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.pslot{aspect-ratio:1;border:1.5px dashed var(--border);border-radius:var(--rs);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative;background:var(--bg);transition:all .15s}
+.pslot:hover{border-color:var(--blue);background:var(--blue-l)}
+.pslot.has{border-style:solid;border-color:var(--border)}
+.pslot img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.pslot .pi{font-size:22px;z-index:1}
+.pslot .pl{font-size:10px;color:var(--muted);margin-top:5px;z-index:1}
+.pslot .pdel{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;border:none}
+input[type=file]{display:none}
+
+/* TRUCK BLOCKS */
+.truck-block{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden}
+.truck-block-hdr{padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.truck-block-body{padding:20px}
+.truck-block-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* CUSTOMER PAGE */
+.trucks-grid{display:grid;gap:20px;margin-bottom:24px}
+.trucks-1{grid-template-columns:1fr;max-width:560px;margin-left:auto;margin-right:auto}
+.trucks-2{grid-template-columns:1fr 1fr}
+.trucks-3{grid-template-columns:1fr 1fr 1fr}
+.trucks-4{grid-template-columns:1fr 1fr}
+
+/* TRUCK CARD */
+.tc{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.tc-topbar{height:4px}
+.tc-main-wrap{position:relative;overflow:hidden;background:#eee;cursor:zoom-in}
+.tc-main-img{width:100%;aspect-ratio:1;object-fit:cover;display:block;transition:transform .3s}
+.tc-main-wrap:hover .tc-main-img{transform:scale(1.04)}
+.tc-main-ph{width:100%;aspect-ratio:1;background:linear-gradient(135deg,#e0e8f4,#ccd8ec);display:flex;align-items:center;justify-content:center;font-size:48px}
+.tc-thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-top:2px}
+.tc-tw{overflow:hidden;cursor:pointer;position:relative}
+.tc-tw::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,.3);transition:opacity .15s;opacity:1}
+.tc-tw.on::after{opacity:0}
+.tc-ti{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+.tc-body{padding:14px}
+.tc-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-block;margin-bottom:7px}
+.tc-title{font-size:15px;font-weight:700;margin-bottom:2px}
+.tc-sub{font-size:12px;color:var(--muted);margin-bottom:10px}
+.tc-specs{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:10px}
+.tc-spec{background:var(--bg);border-radius:6px;padding:6px 8px}
+.tsl{font-size:10px;color:var(--muted)}
+.tsv{font-size:12px;font-weight:600;margin-top:1px}
+.tc-desc{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px;font-style:italic}
+.tc-cd{border-radius:var(--rs);padding:9px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;transition:background .3s}
+.tc-cd.normal{background:var(--blue-l);border:0.5px solid var(--blue-m)}
+.tc-cd.warning{background:var(--red-l);border:0.5px solid var(--red-m);animation:pulse .8s ease-in-out infinite alternate}
+@keyframes pulse{from{opacity:1}to{opacity:.75}}
+.tc-cdl{font-size:11px}
+.tc-cd.normal .tc-cdl{color:var(--blue)}
+.tc-cd.warning .tc-cdl{color:var(--red)}
+.tc-cdv{font-size:16px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:.5px}
+.tc-cd.normal .tc-cdv{color:var(--blue-d)}
+.tc-cd.warning .tc-cdv{color:var(--red)}
+
+/* OFFER FORM */
+.offer-form{border-top:0.5px solid var(--border);padding-top:12px;margin-top:4px}
+.lock-note{background:var(--amber-l);border:0.5px solid var(--amber-m);border-radius:6px;padding:8px 11px;font-size:11px;color:var(--amber);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.err-msg{font-size:12px;color:var(--red);background:var(--red-l);border-radius:6px;padding:7px 11px;margin-bottom:8px;display:none}
+.success-box{background:var(--green-l);border:0.5px solid var(--green-m);border-radius:var(--rs);padding:18px;text-align:center;display:none}
+.success-box.show{display:block}
+.closed-box{background:var(--red-l);border:0.5px solid var(--red-m);border-radius:var(--rs);padding:18px;text-align:center;display:none}
+.closed-box.show{display:block}
+
+/* LIGHTBOX */
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;display:none;align-items:center;justify-content:center;flex-direction:column}
+.lb.open{display:flex}
+.lb-img{max-width:90vw;max-height:80vh;object-fit:contain;border-radius:4px}
+.lb-close{position:absolute;top:18px;right:22px;font-size:28px;color:#fff;cursor:pointer;background:none;border:none;opacity:.8}
+.lb-close:hover{opacity:1}
+.lb-thumbs{display:flex;gap:8px;margin-top:16px}
+.lb-thumb{width:60px;height:60px;object-fit:cover;border-radius:4px;cursor:pointer;opacity:.6;transition:opacity .15s;border:2px solid transparent}
+.lb-thumb.on{opacity:1;border-color:#fff}
+.lb-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.15);border:none;color:#fff;font-size:28px;width:48px;height:48px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.lb-nav:hover{background:rgba(255,255,255,.3)}
+.lb-prev{left:20px}.lb-next{right:20px}
+
+/* TEAMS */
+.teams-wrap{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;margin-bottom:16px}
+.teams-hdr{background:var(--teams);padding:11px 16px;display:flex;align-items:center;gap:10px}
+.teams-ttl{font-size:13px;font-weight:600;color:#fff}
+.teams-sub{font-size:11px;color:rgba(255,255,255,.7);margin-top:1px}
+.teams-body{padding:12px;background:#f3f2f1;min-height:60px;max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:9px}
+.t-empty{text-align:center;padding:16px;font-size:12px;color:#999}
+.t-msg{display:flex;gap:8px;animation:fu .3s ease}
+@keyframes fu{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.t-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:2px}
+.t-bd{flex:1}
+.t-sndr{font-size:11px;font-weight:600;color:#252423;margin-bottom:2px}
+.t-tm{font-size:10px;color:#999;margin-left:5px;font-weight:400}
+.t-card{background:var(--white);border-radius:4px;border-left:3px solid var(--teams);padding:9px 11px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.t-card.fin{border-left-color:#217346}
+.t-card.warn{border-left-color:#A32D2D}
+.t-ttl{font-size:11px;font-weight:700;color:#252423;margin-bottom:6px}
+.t-ttl.fin{color:#217346}.t-ttl.warn{color:#A32D2D}
+.t-row{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:.5px solid #f0f0f0}
+.t-row:last-of-type{border-bottom:none}
+.t-rl{color:#666}.t-rv{color:#252423;font-weight:500}
+.t-rv.lock{color:#999;font-style:italic}.t-rv.win{color:#217346;font-weight:600}
+.t-foot{font-size:10px;color:#888;margin-top:5px;padding-top:4px;border-top:.5px solid #f0f0f0}
+
+/* DASHBOARD */
+.dash-hero{text-align:center;padding:28px 20px;background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:20px}
+.dash-hero h2{font-size:22px;font-weight:700;margin-bottom:4px}
+.dash-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.dash-tab{padding:7px 16px;font-size:13px;font-weight:500;border-radius:20px;cursor:pointer;border:0.5px solid var(--border);background:var(--white);color:var(--muted);font-family:'Sarabun',sans-serif;transition:all .15s}
+.dash-tab.active{color:#fff;border-color:transparent}
+.dash-panel{display:none}.dash-panel.active{display:block}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat-card{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;text-align:center}
+.stat-icon{font-size:24px;margin-bottom:6px}
+.stat-val{font-size:28px;font-weight:700;font-family:'IBM Plex Mono',monospace;margin-bottom:3px}
+.stat-lbl{font-size:12px;color:var(--muted)}
+.result-table-wrap{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.result-table{width:100%;border-collapse:collapse;font-size:13px}
+.result-table th{text-align:left;padding:11px 14px;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.3px;text-transform:uppercase;border-bottom:0.5px solid var(--border);background:var(--bg)}
+.result-table td{padding:12px 14px;border-bottom:0.5px solid var(--border)}
+.result-table tr:last-child td{border-bottom:none}
+.result-table tr.rank1 td{background:#FFFBF0}
+.result-table tr.rank1 td:first-child{border-left:3px solid #854F0B}
+.rk-badge{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700}
+.rk1{background:#FAEEDA;color:#854F0B}.rk2{background:#D3D1C7;color:#444}.rk3{background:#E8D5C4;color:#5c3a1e}.rkn{background:var(--bg);color:var(--muted)}
+.price-chip{font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--blue)}
+.price-chip.top{color:#854F0B}
+.time-chip{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.phone-link{color:var(--blue);font-weight:600;text-decoration:none}
+.phone-link:hover{text-decoration:underline}
+.no-data{text-align:center;padding:32px;color:var(--muted);font-size:13px}
+.loading{text-align:center;padding:40px;color:var(--muted);font-size:14px}
+
+/* CONFIG PAGE */
+.cfg-card{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);padding:28px;max-width:600px;margin:60px auto}
+.step{display:flex;gap:10px;margin-bottom:12px}
+.step-n{width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.step-t{font-size:13px;line-height:1.6}
+code{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--bg);padding:2px 6px;border-radius:3px;border:.5px solid var(--border)}
+.wh-row{display:flex;gap:8px;margin-top:8px}
+.wh-in{flex:1;padding:9px 12px;font-size:12px;font-family:'IBM Plex Mono',monospace;border:.5px solid var(--border);border-radius:var(--rs);background:var(--white);color:var(--text)}
+.wh-in:focus{outline:none;border-color:var(--teams)}
+
+/* RESPONSIVE */
+@media(max-width:900px){.trucks-3{grid-template-columns:1fr 1fr}.stat-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.trucks-2,.trucks-3,.trucks-4{grid-template-columns:1fr}.fi2,.fi3{grid-template-columns:1fr 1fr}.stat-grid{grid-template-columns:1fr 1fr}.truck-block-grid{grid-template-columns:1fr}.nav-tab{padding:0 10px;font-size:12px}}
+</style>
+</head>
+<body>
+
+<!-- LIGHTBOX -->
+<div class="lb" id="lb" onclick="lbBg(event)">
+  <button class="lb-close" onclick="closeLB()">✕</button>
+  <button class="lb-nav lb-prev" onclick="lbNav(-1)">‹</button>
+  <img class="lb-img" id="lb-img" src="">
+  <button class="lb-nav lb-next" onclick="lbNav(1)">›</button>
+  <div class="lb-thumbs" id="lb-thumbs"></div>
+</div>
+
+<nav class="nav">
+  <div class="nav-logo">🚛 <em>ระบบเสนอราคาซื้อรถ</em></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('customer',this)">หน้าเสนอราคา</button>
+    <button class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</button>
+    <button class="nav-tab" onclick="showPage('admin',this)">⚙ Admin</button>
+  </div>
+</nav>
+
+<!-- ==================== CUSTOMER ==================== -->
+<div id="page-customer" class="page active">
+  <div class="wrap" id="customer-wrap">
+    <div class="loading">⏳ กำลังโหลดข้อมูล...</div>
+  </div>
+</div>
+
+<!-- ==================== DASHBOARD ==================== -->
+<div id="page-dashboard" class="page">
+  <div class="wrap-sm">
+    <div class="dash-hero">
+      <h2>📊 สรุปผลการเสนอราคา</h2>
+      <p id="dash-sub">กำลังโหลด...</p>
+    </div>
+    <div class="dash-tabs" id="dash-tabs"></div>
+    <div id="dash-panels"></div>
+  </div>
+</div>
+
+<!-- ==================== ADMIN ==================== -->
+<div id="page-admin" class="page">
+  <div class="wrap">
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="font-size:15px;font-weight:700">รายการรถที่ขาย</div>
+        <button class="btn btn-blue" onclick="showAddTruck()" style="font-size:12px;padding:7px 14px">+ เพิ่มรถ</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted)">เพิ่มได้ไม่จำกัด · รูปรถ 4 รูปต่อคัน · ข้อมูลเก็บบน server real-time</div>
+    </div>
+
+    <div id="truck-blocks"><div class="loading">⏳ กำลังโหลด...</div></div>
+
+    <!-- ADD/EDIT TRUCK FORM -->
+    <div id="truck-form-wrap" style="display:none">
+      <div class="truck-block">
+        <div class="truck-block-hdr" id="truck-form-hdr" style="background:var(--blue)">
+          <div style="font-size:14px;font-weight:700;color:#fff" id="truck-form-title">🚛 เพิ่มรถใหม่</div>
+          <button class="btn" style="background:rgba(255,255,255,.2);color:#fff;font-size:11px;padding:4px 10px" onclick="hideAddTruck()">ยกเลิก</button>
+        </div>
+        <div class="truck-block-body">
+          <input type="hidden" id="edit-truck-id">
+          <div class="truck-block-grid">
+            <div>
+              <div class="sec-lbl">ข้อมูลรถ</div>
+              <div class="fi2">
+                <div class="fg"><label class="fl">ยี่ห้อ *</label><input class="fi" id="f-brand" placeholder="เช่น ISUZU"></div>
+                <div class="fg"><label class="fl">รุ่น *</label><input class="fi" id="f-model" placeholder="เช่น FVR 240"></div>
+              </div>
+              <div class="fi3">
+                <div class="fg"><label class="fl">ปี (พ.ศ.)</label><input class="fi" id="f-year" type="number" placeholder="2561"></div>
+                <div class="fg"><label class="fl">ประเภท</label><input class="fi" id="f-type" placeholder="รถ 6 ล้อ"></div>
+                <div class="fg"><label class="fl">ไมล์ (กม.)</label><input class="fi" id="f-km" type="number" placeholder="248000"></div>
+              </div>
+              <div class="fi2">
+                <div class="fg"><label class="fl">ทะเบียน</label><input class="fi" id="f-plate" placeholder="80-0892"></div>
+                <div class="fg"><label class="fl">จังหวัด</label><input class="fi" id="f-province" placeholder="นครราชสีมา"></div>
+              </div>
+              <div class="fi2">
+                <div class="fg"><label class="fl">เครื่องยนต์</label><input class="fi" id="f-engine" placeholder="6HK1"></div>
+                <div class="fg"><label class="fl">กำลัง</label><input class="fi" id="f-hp" placeholder="240 แรงม้า"></div>
+              </div>
+              <div class="fg"><label class="fl">สภาพ / รายละเอียด</label><textarea class="fi" id="f-desc" placeholder="สภาพดี ยางใหม่ เช็คช่วงล่างแล้ว"></textarea></div>
+              <div class="divider"></div>
+              <div class="sec-lbl">📞 ติดต่อ + กำหนดเวลา</div>
+              <div class="fi2">
+                <div class="fg"><label class="fl">LINE ID *</label><input class="fi" id="f-line" placeholder="@yourline"></div>
+                <div class="fg"><label class="fl">ชื่อผู้ติดต่อ</label><input class="fi" id="f-contact" placeholder="คุณสมชาย"></div>
+              </div>
+              <div class="fi3">
+                <div class="fg"><label class="fl">วันปิดรับ *</label><input class="fi" id="f-date" type="date"></div>
+                <div class="fg"><label class="fl">เวลาปิด</label><input class="fi" id="f-time" type="time" value="17:00"></div>
+                <div class="fg"><label class="fl">จำนวนคนที่เชิญ</label><input class="fi" id="f-max" type="number" min="1" value="5"><p class="fn">ครบ → ปิดทันที</p></div>
+              </div>
+            </div>
+            <div>
+              <div class="sec-lbl">📷 รูปรถ 4 รูป</div>
+              <div class="photo-grid" id="photo-area"></div>
+              <input type="file" id="pf0" accept="image/*" onchange="loadPh(0,this)">
+              <input type="file" id="pf1" accept="image/*" onchange="loadPh(1,this)">
+              <input type="file" id="pf2" accept="image/*" onchange="loadPh(2,this)">
+              <input type="file" id="pf3" accept="image/*" onchange="loadPh(3,this)">
+              <p class="fn" style="margin-bottom:16px">คลิกช่องเพื่ออัปโหลดรูป · รูปจะเก็บบน server</p>
+              <div class="divider"></div>
+              <div class="sec-lbl">💬 MS Teams Webhook</div>
+              <div class="step"><div class="step-n">1</div><div class="step-t">Teams → channel → <code>···</code> → Connectors → Incoming Webhook → Create</div></div>
+              <div class="step"><div class="step-n">2</div><div class="step-t">วาง URL ด้านล่าง<br><code>https://xxxxx.webhook.office.com/...</code></div></div>
+              <div class="fg"><label class="fl">Webhook URL</label><input class="fi" id="f-webhook" placeholder="https://xxxxx.webhook.office.com/..."></div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div id="form-err" class="ss ss-err"></div>
+          <div style="display:flex;gap:10px;max-width:400px">
+            <button class="btn btn-green btn-full" onclick="saveTruck()">บันทึกรถ →</button>
+            <button class="btn btn-ghost" onclick="hideAddTruck()">ยกเลิก</button>
+          </div>
+          <div class="ss ss-ok" id="form-ok">✓ บันทึกแล้ว</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ==================== CONFIG ====================
+// แก้ค่านี้ให้ตรงกับ Supabase ของคุณ
+const SUPABASE_URL = 'https://zyzstholiioqiciipdgl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5enN0aG9saWlvcWljaWlwZGdsIiwicm9sZSI6ImFub24iLCJpYXQiOj';
+
+// ==================== INIT ====================
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const TRUCK_COLORS=['#185FA5','#854F0B','#3B6D11','#6264A7','#A32D2D','#0F6E56'];
+
+let trucks=[], bids={}, cdTimers={}, warnSent={}, finalSent={}, teamsInited=false;
+let lbPhotos=[], lbIdx=0;
+let editPhotos=[null,null,null,null];
+let realtimeSub=null;
+
+// Check config
+if(SUPABASE_URL==='https://zyzstholiioqiciipdgl.supabase.co'){
+  document.querySelector('.cfg-banner').classList.add('show');
+  document.querySelector('.cfg-banner').textContent='⚠ กรุณาใส่ SUPABASE_URL และ SUPABASE_ANON_KEY ในไฟล์ index.html ก่อน';
+}
+
+window.onload = async()=>{
+  await loadTrucks();
+  subscribeRealtime();
+  renderCustomer();
+  renderDashboard();
+  renderAdminBlocks();
+};
+
+// ==================== DATA ====================
+async function loadTrucks(){
+  const {data,error}=await sb.from('trucks').select('*').order('created_at');
+  if(!error) trucks=data||[];
+  // load bids for all trucks
+  if(trucks.length){
+    const {data:bd}=await sb.from('bids').select('*').order('submitted_at');
+    bids={};
+    (bd||[]).forEach(b=>{ if(!bids[b.truck_id]) bids[b.truck_id]=[]; bids[b.truck_id].push(b); });
+  }
+}
+
+function subscribeRealtime(){
+  if(realtimeSub) realtimeSub.unsubscribe();
+  realtimeSub = sb.channel('realtime-all')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'bids'},payload=>{
+      const b=payload.new;
+      if(!bids[b.truck_id]) bids[b.truck_id]=[];
+      bids[b.truck_id].push(b);
+      const truck=trucks.find(t=>t.id===b.truck_id);
+      if(truck){
+        const seq=(bids[b.truck_id]||[]).length;
+        const ts=new Date(b.submitted_at);
+        const tsStr=String(ts.getHours()).padStart(2,'0')+':'+String(ts.getMinutes()).padStart(2,'0');
+        addTeamsMsg(truck,seq,b.name,b.phone,b.company||'-',tsStr);
+        if(truck.webhook_url) whProg(truck,seq,b.name,b.phone,b.company||'-',tsStr);
+        // check if full
+        if(seq>=(truck.max_bidders||999) && !finalSent[truck.id]){
+          finalSent[truck.id]=true;
+          closeAndSendFinal(truck);
+        }
+      }
+      renderDashboard();
+      updateBidCount();
+    })
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'trucks'},payload=>{
+      const idx=trucks.findIndex(t=>t.id===payload.new.id);
+      if(idx>=0) trucks[idx]=payload.new;
+      renderCustomer(); renderAdminBlocks(); renderDashboard();
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'trucks'},payload=>{
+      trucks.push(payload.new); renderCustomer(); renderAdminBlocks(); renderDashboard();
+    })
+    .on('postgres_changes',{event:'DELETE',schema:'public',table:'trucks'},payload=>{
+      trucks=trucks.filter(t=>t.id!==payload.old.id);
+      renderCustomer(); renderAdminBlocks(); renderDashboard();
+    })
+    .subscribe();
+}
+
+function updateBidCount(){
+  trucks.forEach(t=>{
+    const el=document.getElementById('bc-'+t.id);
+    if(el) el.innerHTML=(bids[t.id]||[]).length+'<sub> ราย</sub>';
+  });
+}
+
+// ==================== PAGE NAV ====================
+function showPage(p,el){
+  document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(e=>e.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  if(el) el.classList.add('active');
+  if(p==='dashboard') renderDashboard();
+}
+
+// ==================== CUSTOMER ====================
+function truckColor(ti){ return TRUCK_COLORS[ti%TRUCK_COLORS.length]; }
+function getDL(t){ if(!t||!t.deadline) return null; return new Date(t.deadline); }
+function isClosed(t){ const d=getDL(t); return t.is_closed||(d&&new Date()>d); }
+function isFullBidders(t){ return (bids[t.id]||[]).length>=(t.max_bidders||999); }
+function fmtDL(t){ const d=getDL(t); if(!d) return '-'; return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()+543} เวลา ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} น.`; }
+
+function renderCustomer(){
+  Object.values(cdTimers).forEach(t=>clearInterval(t)); cdTimers={};
+  const wrap=document.getElementById('customer-wrap');
+  if(!trucks.length){
+    wrap.innerHTML=`<div style="text-align:center;padding:60px 20px"><div style="font-size:40px;margin-bottom:12px">🚛</div><div style="font-size:16px;font-weight:700;color:var(--muted);margin-bottom:6px">ยังไม่มีรถในระบบ</div><div style="font-size:13px;color:var(--muted)">ไปที่แท็บ Admin เพื่อเพิ่มรถ</div></div>`;
+    return;
+  }
+  const n=trucks.length;
+  const gc=n===1?'trucks-1':n===2?'trucks-2':n===3?'trucks-3':'trucks-4';
+  wrap.innerHTML=`<div class="trucks-grid ${gc}" id="trucks-grid">${trucks.map((t,ti)=>renderTruckCard(t,ti)).join('')}</div>
+  <div style="max-width:760px;margin:0 auto">
+    <div class="teams-wrap">
+      <div class="teams-hdr"><div style="font-size:16px">💬</div><div><div class="teams-ttl">MS Teams · การแจ้งเตือน</div><div class="teams-sub">ราคาถูกล็อคจนปิดรับ</div></div></div>
+      <div class="teams-body" id="teams-body"><div class="t-empty">รอการเสนอราคา...</div></div>
+    </div>
+  </div>`;
+  trucks.forEach((t,ti)=>startCD(t,ti));
+}
+
+function renderTruckCard(t,ti){
+  const clr=truckColor(ti); const closed=isClosed(t)||isFullBidders(t);
+  const name=[t.brand,t.model,t.year?'ปี '+t.year:''].filter(Boolean).join(' ');
+  const photos=t.photo_urls||[];
+  const specs=[t.type?{l:'ประเภท',v:t.type}:null,t.year?{l:'ปีจดทะเบียน',v:t.year}:null,t.km?{l:'เลขไมล์',v:parseInt(t.km).toLocaleString()+' กม.'}:null,t.engine?{l:'เครื่องยนต์',v:t.engine}:null,t.hp?{l:'กำลัง',v:t.hp}:null,(t.plate||t.province)?{l:'ทะเบียน',v:[t.plate,t.province].filter(Boolean).join(' ')}:null].filter(Boolean);
+  const activePhotos=photos.filter(p=>p);
+  let galleryHTML='';
+  if(activePhotos.length){
+    galleryHTML=`<div class="tc-main-wrap" onclick="openLB('${t.id}',0)"><img class="tc-main-img" id="tcm-${t.id}" src="${activePhotos[0]}"></div>`;
+    galleryHTML+=`<div class="tc-thumbs">${[0,1,2,3].map(pi=>{const p=photos[pi];return p?`<div class="tc-tw${pi===0?' on':''}" id="tctw-${t.id}-${pi}" onclick="swImg('${t.id}',${pi},this)"><img class="tc-ti" src="${p}"></div>`:`<div style="background:var(--bg);aspect-ratio:1"></div>`;}).join('')}</div>`;
+  } else { galleryHTML=`<div class="tc-main-ph">🚛</div><div class="tc-thumbs">${[0,1,2,3].map(()=>`<div style="background:var(--bg);aspect-ratio:1"></div>`).join('')}</div>`; }
+
+  return `<div class="tc">
+    <div class="tc-topbar" style="background:${clr}"></div>
+    <div>${galleryHTML}</div>
+    <div class="tc-body">
+      <span class="tc-badge" style="background:${clr}20;color:${clr}">รถคันที่ ${ti+1}</span>
+      <div class="tc-title">${name}</div>
+      ${(t.plate||t.province)?`<div class="tc-sub">ทะเบียน ${[t.plate,t.province].filter(Boolean).join(' · ')}</div>`:''}
+      ${specs.length?`<div class="tc-specs">${specs.map(s=>`<div class="tc-spec"><div class="tsl">${s.l}</div><div class="tsv">${s.v}</div></div>`).join('')}</div>`:''}
+      ${t.description?`<div class="tc-desc">${t.description}</div>`:''}
+      <div class="tc-cd normal" id="cd-box-${t.id}">
+        <div><div class="tc-cdl" id="cd-lbl-${t.id}">ปิดรับราคาใน</div><div class="tc-cdv" id="cd-${t.id}">--:--:--</div></div>
+        <div style="text-align:right;font-size:11px;color:var(--blue)">ปิด ${fmtDL(t)}</div>
+      </div>
+      ${t.line_id?`<div style="background:#E8F9EE;border-radius:var(--rs);padding:9px 12px;margin-bottom:10px;display:flex;align-items:center;gap:10px"><div style="font-size:20px">💚</div><div><div style="font-size:10px;color:var(--green);font-weight:700">LINE</div><div style="font-size:13px;font-weight:700">${t.line_id}</div>${t.contact_name?`<div style="font-size:11px;color:var(--muted)">${t.contact_name}</div>`:''}</div></div>`:''}
+      <div id="closed-${t.id}" class="closed-box${closed?' show':''}"><div style="font-size:24px;margin-bottom:6px">🔒</div><div style="font-size:13px;font-weight:700;color:var(--red)">ปิดรับราคาแล้ว</div><div style="font-size:11px;color:var(--red);margin-top:4px">ดูผลสรุปได้ที่แท็บ Dashboard</div></div>
+      <div id="suc-${t.id}" class="success-box"><div style="font-size:24px;margin-bottom:6px">✅</div><div style="font-size:13px;font-weight:700;color:var(--green)">ส่งราคาเสนอซื้อสำเร็จ!</div><div style="font-size:11px;color:#639922;margin-top:4px;line-height:1.5" id="suc-d-${t.id}"></div></div>
+      <div class="offer-form" id="form-${t.id}" ${closed?'style="display:none"':''}>
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px">📝 เสนอราคา</div>
+        <div class="fg"><label class="fl">ชื่อ - นามสกุล *</label><input class="fi" id="fn-${t.id}" placeholder="ชื่อ-นามสกุล"></div>
+        <div class="fg"><label class="fl">เบอร์โทร *</label><input class="fi" id="fp-${t.id}" type="tel" placeholder="0812345678"></div>
+        <div class="fg"><label class="fl">บริษัท <span style="font-weight:400;color:#bbb">(ถ้ามี)</span></label><input class="fi" id="fc-${t.id}" placeholder="ชื่อบริษัท"></div>
+        <div class="lock-note">🔒 ราคาเก็บเป็นความลับจนปิดรับ</div>
+        <div class="fg"><label class="fl">ราคาที่เสนอ (บาท) *</label>
+          <div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)">฿</span>
+          <input class="fi" id="fpr-${t.id}" type="number" min="1" step="1000" placeholder="กรอกราคา" style="padding-left:28px"></div></div>
+        <div class="err-msg" id="err-${t.id}"></div>
+        <button class="btn btn-full" style="background:${clr};color:#fff" onclick="submitBid('${t.id}')">ยืนยันการเสนอราคา →</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function swImg(tid,pi,wrap){
+  const t=trucks.find(x=>x.id===tid); if(!t) return;
+  const photos=t.photo_urls||[]; const p=photos[pi]; if(!p) return;
+  const m=document.getElementById('tcm-'+tid); if(m) m.src=p;
+  document.querySelectorAll(`[id^="tctw-${tid}-"]`).forEach(el=>el.classList.remove('on'));
+  wrap.classList.add('on');
+}
+
+async function submitBid(tid){
+  const t=trucks.find(x=>x.id===tid); if(!t) return;
+  if(isClosed(t)||isFullBidders(t)){closeBidUI(tid);return;}
+  const name=gv('fn-'+tid),phone=gv('fp-'+tid),company=gv('fc-'+tid);
+  const price=parseInt(document.getElementById('fpr-'+tid).value);
+  const errEl=document.getElementById('err-'+tid);
+  if(!name){errEl.textContent='กรุณากรอกชื่อ-นามสกุล';errEl.style.display='block';return;}
+  if(!phone||phone.replace(/\D/g,'').length<9){errEl.textContent='กรุณากรอกเบอร์โทรให้ถูกต้อง';errEl.style.display='block';return;}
+  if(!price||price<1){errEl.textContent='กรุณากรอกราคาที่เสนอ';errEl.style.display='block';return;}
+  errEl.style.display='none';
+  const {error}=await sb.from('bids').insert({truck_id:tid,name,phone,company:company||null,price});
+  if(error){errEl.textContent='เกิดข้อผิดพลาด กรุณาลองใหม่';errEl.style.display='block';return;}
+  document.getElementById('form-'+tid).style.display='none';
+  document.getElementById('suc-'+tid).classList.add('show');
+  document.getElementById('suc-d-'+tid).innerHTML=`ราคาของท่านถูกบันทึกแล้ว<br>เก็บเป็นความลับจนปิดรับ ${fmtDL(t)}`;
+}
+
+function closeBidUI(tid){
+  const cb=document.getElementById('closed-'+tid); if(cb) cb.classList.add('show');
+  const f=document.getElementById('form-'+tid); if(f) f.style.display='none';
+}
+
+async function closeAndSendFinal(t){
+  await sb.from('trucks').update({is_closed:true}).eq('id',t.id);
+  sendFinalTeams(t);
+}
+
+// ==================== COUNTDOWN ====================
+function startCD(t,ti){
+  if(cdTimers[t.id]) clearInterval(cdTimers[t.id]);
+  tickCD(t,ti); cdTimers[t.id]=setInterval(()=>tickCD(t,ti),1000);
+}
+function tickCD(t,ti){
+  const el=document.getElementById('cd-'+t.id); if(!el) return;
+  const dl=getDL(t); if(!dl){el.textContent='--:--:--';return;}
+  const diff=dl-new Date();
+  const box=document.getElementById('cd-box-'+t.id);
+  const lbl=document.getElementById('cd-lbl-'+t.id);
+  if(diff<=0){
+    el.textContent='หมดเวลา'; if(box) box.className='tc-cd warning'; if(lbl) lbl.textContent='ปิดรับราคาแล้ว';
+    closeBidUI(t.id); clearInterval(cdTimers[t.id]);
+    if(!finalSent[t.id]&&(bids[t.id]||[]).length>0){finalSent[t.id]=true;closeAndSendFinal(t);}
+    return;
+  }
+  if(diff<=60*60*1000&&!warnSent[t.id]){
+    warnSent[t.id]=true; sendWarnTeams(t,Math.ceil(diff/60000));
+    if(box) box.className='tc-cd warning'; if(lbl) lbl.textContent='⚠ เหลือเวลาน้อย!';
+  } else if(diff>60*60*1000&&box) box.className='tc-cd normal';
+  const d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000);
+  const m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);
+  el.textContent=(d>0?d+'ว ':'')+String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+
+// ==================== LIGHTBOX ====================
+function openLB(tid,pi){
+  const t=trucks.find(x=>x.id===tid); if(!t) return;
+  const photos=(t.photo_urls||[]).filter(p=>p); if(!photos.length) return;
+  lbPhotos=photos; lbIdx=pi; if(lbIdx>=lbPhotos.length) lbIdx=0;
+  document.getElementById('lb-img').src=lbPhotos[lbIdx];
+  document.getElementById('lb-thumbs').innerHTML=lbPhotos.map((p,i)=>`<img class="lb-thumb${i===lbIdx?' on':''}" src="${p}" onclick="lbGo(${i})">`).join('');
+  document.getElementById('lb').classList.add('open'); document.body.style.overflow='hidden';
+}
+function lbGo(i){ lbIdx=i; document.getElementById('lb-img').src=lbPhotos[i]; document.querySelectorAll('.lb-thumb').forEach((t,idx)=>t.classList.toggle('on',idx===i)); }
+function lbNav(d){ lbGo((lbIdx+d+lbPhotos.length)%lbPhotos.length); }
+function closeLB(){ document.getElementById('lb').classList.remove('open'); document.body.style.overflow=''; }
+function lbBg(e){ if(e.target===document.getElementById('lb')) closeLB(); }
+document.addEventListener('keydown',e=>{ if(!document.getElementById('lb').classList.contains('open')) return; if(e.key==='ArrowLeft') lbNav(-1); if(e.key==='ArrowRight') lbNav(1); if(e.key==='Escape') closeLB(); });
+
+// ==================== TEAMS ====================
+function getTB(){ const el=document.getElementById('teams-body'); if(!el) return null; if(!teamsInited){teamsInited=true;el.innerHTML='';} return el; }
+function addTeamsMsg(t,seq,name,phone,company,ts){
+  const b=getTB(); if(!b) return;
+  const ti=trucks.findIndex(x=>x.id===t.id); const clr=truckColor(ti).replace('#','');
+  b.insertAdjacentHTML('beforeend',`<div class="t-msg"><div class="t-av" style="background:#${clr}">🤖</div><div class="t-bd">
+    <div class="t-sndr">${t.brand} ${t.model||''} <span class="t-tm">${ts} น.</span></div>
+    <div class="t-card" style="border-left-color:#${clr}">
+      <div class="t-ttl">🔔 ผู้เสนอราคารายที่ ${seq}</div>
+      <div class="t-row"><span class="t-rl">ชื่อ</span><span class="t-rv">${name}</span></div>
+      <div class="t-row"><span class="t-rl">เบอร์</span><span class="t-rv">${phone}</span></div>
+      <div class="t-row"><span class="t-rl">บริษัท</span><span class="t-rv">${company}</span></div>
+      <div class="t-row"><span class="t-rl">ราคา</span><span class="t-rv lock">🔒 ปิดผนึก</span></div>
+      <div class="t-foot">${t.brand} ${t.model||''} · ${seq} ราย · ปิด ${fmtDL(t)}</div>
+    </div></div></div>`);
+  b.scrollTop=b.scrollHeight;
+}
+function sendFinalTeams(t){
+  const sorted=[...(bids[t.id]||[])].sort((a,b)=>b.price-a.price); if(!sorted.length) return;
+  const b=getTB(); if(!b) return;
+  const now=new Date(),ts=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const rkc=['rk1','rk2','rk3','rk4','rk5'];
+  const rows=sorted.map((x,i)=>`<div class="t-row"><span class="t-rl"><span class="rk ${rkc[i]||'rkn'}">${i+1}</span>${x.name}</span><span class="t-rv win">฿${x.price.toLocaleString()}</span></div>`).join('');
+  b.insertAdjacentHTML('beforeend',`<div class="t-msg"><div class="t-av fin">🏆</div><div class="t-bd">
+    <div class="t-sndr" style="color:#217346;font-weight:700">สรุป ${t.brand} ${t.model||''} <span class="t-tm">${ts} น.</span></div>
+    <div class="t-card fin"><div class="t-ttl fin">🏁 ผลสรุป ${t.brand} ${t.model||''} · ${sorted.length} ราย</div>${rows}
+    <div class="t-foot">ผู้เสนอสูงสุด: <strong>${sorted[0].name}</strong> · ฿${sorted[0].price.toLocaleString()} · ${sorted[0].phone}</div></div></div></div>`);
+  b.scrollTop=b.scrollHeight;
+  if(t.webhook_url) whFinal(t,sorted,ts);
+}
+function sendWarnTeams(t,mins){
+  const b=getTB(); if(!b) return;
+  b.insertAdjacentHTML('beforeend',`<div class="t-msg"><div class="t-av" style="background:#A32D2D">⚠️</div><div class="t-bd">
+    <div class="t-sndr" style="color:#A32D2D;font-weight:700">${t.brand} ${t.model||''} — เหลือ ~${mins} นาที</div>
+    <div class="t-card warn"><div class="t-ttl warn">⏰ ใกล้หมดเวลา กรุณาแจ้งผู้ที่ยังไม่ได้เสนอราคา</div>
+    <div class="t-row"><span class="t-rl">ปิดรับ</span><span class="t-rv">${fmtDL(t)}</span></div>
+    <div class="t-row"><span class="t-rl">เสนอราคาแล้ว</span><span class="t-rv">${(bids[t.id]||[]).length} ราย</span></div></div></div></div>`);
+  b.scrollTop=b.scrollHeight;
+  if(t.webhook_url) whWarn(t,mins);
+}
+
+// ==================== WEBHOOK ====================
+function doFetch(url,payload){ if(!url) return; fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(()=>{}); }
+function whProg(t,seq,name,phone,company,ts){ doFetch(t.webhook_url,{"@type":"MessageCard","@context":"http://schema.org/extensions","themeColor":"6264A7","summary":`ผู้เสนอราคา ${t.brand} รายที่ ${seq}`,"sections":[{"activityTitle":`🔔 ${t.brand} ${t.model||''} · รายที่ ${seq} · ${ts} น.`,"facts":[{"name":"ชื่อ","value":name},{"name":"เบอร์","value":phone},{"name":"บริษัท","value":company},{"name":"ราคา","value":"🔒 ปิดผนึก"},{"name":"ยอดรวม","value":seq+" ราย"}]}]}); }
+function whWarn(t,m){ doFetch(t.webhook_url,{"@type":"MessageCard","@context":"http://schema.org/extensions","themeColor":"A32D2D","summary":`⚠ ${t.brand} เหลือ ~${m} นาที`,"sections":[{"activityTitle":`⏰ ${t.brand} ${t.model||''} — เหลือ ~${m} นาที!`,"facts":[{"name":"ปิดรับ","value":fmtDL(t)},{"name":"เสนอแล้ว","value":(bids[t.id]||[]).length+" ราย"},{"name":"แนะนำ","value":"แจ้งผู้ที่ยังไม่ได้เสนอราคาด่วน"}]}]}); }
+function whFinal(t,sorted,ts){ const facts=sorted.map((b,i)=>({"name":`อันดับ ${i+1} · ${b.name}`,"value":`฿${b.price.toLocaleString()} · ${b.phone}`})); facts.push({"name":"ผู้เสนอสูงสุด","value":`${sorted[0].name} · ฿${sorted[0].price.toLocaleString()} · ${sorted[0].phone}`}); doFetch(t.webhook_url,{"@type":"MessageCard","@context":"http://schema.org/extensions","themeColor":"217346","summary":`สรุด ${t.brand}`,"sections":[{"activityTitle":`🏁 ผลสรุป ${t.brand} ${t.model||''} · ${ts} น.`,"facts":facts}]}); }
+
+// ==================== DASHBOARD ====================
+function renderDashboard(){
+  if(!trucks.length){ document.getElementById('dash-sub').textContent='ยังไม่มีข้อมูล'; document.getElementById('dash-tabs').innerHTML=''; document.getElementById('dash-panels').innerHTML=''; return; }
+  const tabs=document.getElementById('dash-tabs');
+  const curTab=tabs.querySelector('.dash-tab.active');
+  let activeTi=curTab?parseInt(curTab.dataset.ti):0;
+  tabs.innerHTML=trucks.map((t,ti)=>{const clr=truckColor(ti);return `<button class="dash-tab${ti===activeTi?' active':''}" data-ti="${ti}" style="${ti===activeTi?`background:${clr};color:#fff`:''}" onclick="switchDash(${ti})">${t.brand} ${t.model||''}</button>`;}).join('');
+  document.getElementById('dash-panels').innerHTML=trucks.map((_,ti)=>`<div class="dash-panel${ti===activeTi?' active':''}" id="dp-${ti}">${buildPanel(ti)}</div>`).join('');
+  document.getElementById('dash-sub').textContent='เลือกรถที่ต้องการดูผล';
+}
+
+function switchDash(ti){
+  const clr=truckColor(ti);
+  document.querySelectorAll('.dash-tab').forEach((t,i)=>{ t.classList.toggle('active',i===ti); t.style.background=i===ti?clr:''; t.style.color=i===ti?'#fff':''; });
+  document.querySelectorAll('.dash-panel').forEach((p,i)=>p.classList.toggle('active',i===ti));
+}
+
+function buildPanel(ti){
+  const t=trucks[ti]; if(!t) return '';
+  const b=bids[t.id]||[]; const sorted=[...b].sort((a,x)=>x.price-a.price);
+  const closed=isClosed(t)||isFullBidders(t)||finalSent[t.id];
+  const clr=truckColor(ti);
+  const topPrice=sorted.length?sorted[0].price:0;
+  const avgPrice=b.length?Math.round(b.reduce((s,x)=>s+x.price,0)/b.length):0;
+  const rkc=['rk1','rk2','rk3','rk4','rk5'];
+  return `
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-val" style="color:${clr}">${b.length}</div><div class="stat-lbl">ผู้เสนอราคา</div></div>
+    <div class="stat-card"><div class="stat-icon">🏆</div><div class="stat-val" style="color:${clr};font-size:${topPrice>999999?'18px':'28px'}">${topPrice?'฿'+topPrice.toLocaleString():'-'}</div><div class="stat-lbl">ราคาสูงสุด</div></div>
+    <div class="stat-card"><div class="stat-icon">📊</div><div class="stat-val" style="color:${clr};font-size:${avgPrice>999999?'18px':'28px'}">${avgPrice?'฿'+avgPrice.toLocaleString():'-'}</div><div class="stat-lbl">ราคาเฉลี่ย</div></div>
+    <div class="stat-card"><div class="stat-icon">${closed?'🔒':'🟢'}</div><div class="stat-val" style="color:${closed?'var(--red)':'var(--green)'};font-size:18px;padding-top:4px">${closed?'ปิดแล้ว':'กำลังรับ'}</div><div class="stat-lbl">ปิด ${fmtDL(t)}</div></div>
+  </div>
+  <div class="result-table-wrap">
+    <table class="result-table">
+      <thead><tr><th>อันดับ</th><th>ชื่อ</th><th>เบอร์โทร</th><th>บริษัท</th><th>เวลาที่ส่ง</th><th style="text-align:right">ราคาเสนอ</th></tr></thead>
+      <tbody>${sorted.length?sorted.map((row,i)=>{
+        const dt=new Date(row.submitted_at);
+        const ts=`${dt.getDate()}/${dt.getMonth()+1}/${dt.getFullYear()+543} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')} น.`;
+        return `<tr class="${i===0?'rank1':''}">
+          <td><span class="rk-badge ${rkc[i]||'rkn'}">${i+1}</span></td>
+          <td><strong>${row.name}</strong></td>
+          <td><a class="phone-link" href="tel:${row.phone}">${row.phone}</a></td>
+          <td style="color:var(--muted)">${row.company||'-'}</td>
+          <td><span class="time-chip">${ts}</span></td>
+          <td style="text-align:right"><span class="price-chip${i===0?' top':''}">฿${row.price.toLocaleString()}</span></td>
+        </tr>`;}).join(''):`<tr><td colspan="6" class="no-data">ยังไม่มีการเสนอราคา</td></tr>`}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+// ==================== ADMIN ====================
+async function renderAdminBlocks(){
+  const wrap=document.getElementById('truck-blocks');
+  if(!trucks.length){ wrap.innerHTML=`<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">ยังไม่มีรถ · กดปุ่ม "+ เพิ่มรถ" ด้านบน</div>`; return; }
+  wrap.innerHTML=trucks.map((t,ti)=>{
+    const clr=truckColor(ti); const b=bids[t.id]||[];
+    return `<div class="truck-block">
+      <div class="truck-block-hdr" style="background:${clr}">
+        <div style="font-size:14px;font-weight:700;color:#fff">🚛 ${t.brand} ${t.model||''} ${t.year?'ปี '+t.year:''}</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" style="background:rgba(255,255,255,.2);color:#fff;font-size:11px;padding:4px 10px" onclick="editTruck('${t.id}')">แก้ไข</button>
+          <button class="btn" style="background:rgba(255,0,0,.3);color:#fff;font-size:11px;padding:4px 10px" onclick="deleteTruck('${t.id}')">ลบ</button>
+        </div>
+      </div>
+      <div style="padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div style="font-size:13px;color:var(--muted)">ปิดรับ: ${fmtDL(t)} · เชิญ ${t.max_bidders||5} คน</div>
+        <div style="font-size:16px;font-weight:700;color:${clr}">ผู้เสนอราคา: <span id="bc-${t.id}">${b.length}</span> ราย</div>
+        <div style="font-size:12px;padding:3px 10px;border-radius:20px;background:${isClosed(t)?'var(--red-l)':'var(--green-l)'};color:${isClosed(t)?'var(--red)':'var(--green)'}">
+          ${isClosed(t)?'ปิดรับแล้ว':'เปิดรับอยู่'}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// PHOTO UPLOAD
+function renderPhotoArea(){
+  const area=document.getElementById('photo-area'); if(!area) return;
+  const labels=['มุมหน้า','มุมข้าง','มุมท้าย','ภายใน'];
+  area.innerHTML=[0,1,2,3].map(pi=>editPhotos[pi]
+    ?`<div class="pslot has" onclick="document.getElementById('pf${pi}').click()"><img src="${editPhotos[pi]}"><button class="pdel" onclick="event.stopPropagation();delPh(${pi})">✕</button></div>`
+    :`<div class="pslot" onclick="document.getElementById('pf${pi}').click()"><span class="pi">📷</span><span class="pl">${labels[pi]}</span></div>`
+  ).join('');
+}
+function loadPh(pi,input){
+  const f=input.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=e=>{ editPhotos[pi]=e.target.result; renderPhotoArea(); }; r.readAsDataURL(f);
+}
+function delPh(pi){ editPhotos[pi]=null; document.getElementById('pf'+pi).value=''; renderPhotoArea(); }
+
+function showAddTruck(){
+  editPhotos=[null,null,null,null];
+  document.getElementById('edit-truck-id').value='';
+  document.getElementById('truck-form-title').textContent='🚛 เพิ่มรถใหม่';
+  ['brand','model','year','type','km','plate','province','engine','hp','desc','line','contact','webhook'].forEach(k=>{ const el=document.getElementById('f-'+k); if(el) el.value=''; });
+  document.getElementById('f-date').value=''; document.getElementById('f-time').value='17:00'; document.getElementById('f-max').value='5';
+  renderPhotoArea();
+  document.getElementById('truck-form-wrap').style.display='block';
+  document.getElementById('truck-form-wrap').scrollIntoView({behavior:'smooth'});
+}
+
+function hideAddTruck(){ document.getElementById('truck-form-wrap').style.display='none'; }
+
+function editTruck(tid){
+  const t=trucks.find(x=>x.id===tid); if(!t) return;
+  editPhotos=(t.photo_urls||[null,null,null,null]).map(p=>p||null);
+  document.getElementById('edit-truck-id').value=tid;
+  document.getElementById('truck-form-title').textContent='🚛 แก้ไขรถ';
+  const g=(id,v)=>{ const el=document.getElementById('f-'+id); if(el&&v!=null) el.value=v; };
+  g('brand',t.brand); g('model',t.model); g('year',t.year); g('type',t.type);
+  g('km',t.km); g('plate',t.plate); g('province',t.province);
+  g('engine',t.engine); g('hp',t.hp); g('desc',t.description);
+  g('line',t.line_id); g('contact',t.contact_name); g('webhook',t.webhook_url);
+  g('max',t.max_bidders||5);
+  if(t.deadline){ const d=new Date(t.deadline); g('date',d.toISOString().split('T')[0]); g('time',String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')); }
+  renderPhotoArea();
+  document.getElementById('truck-form-wrap').style.display='block';
+  document.getElementById('truck-form-wrap').scrollIntoView({behavior:'smooth'});
+}
+
+async function saveTruck(){
+  const brand=gv('f-brand'); if(!brand){ showErr('กรุณากรอกยี่ห้อ'); return; }
+  const dateVal=gv('f-date'); if(!dateVal){ showErr('กรุณาเลือกวันปิดรับ'); return; }
+  const timeVal=document.getElementById('f-time').value||'17:00';
+  const deadline=new Date(dateVal+'T'+timeVal+':00').toISOString();
+
+  // Upload photos to Supabase Storage
+  const photoUrls=[];
+  for(let i=0;i<4;i++){
+    if(editPhotos[i]&&editPhotos[i].startsWith('data:')){
+      const blob=await (await fetch(editPhotos[i])).blob();
+      const fname=`truck-${Date.now()}-${i}.jpg`;
+      const {data,error}=await sb.storage.from('truck-images').upload(fname,blob,{upsert:true,contentType:'image/jpeg'});
+      if(!error){ const {data:ud}=sb.storage.from('truck-images').getPublicUrl(fname); photoUrls.push(ud.publicUrl); }
+      else photoUrls.push(null);
+    } else { photoUrls.push(editPhotos[i]||null); }
+  }
+
+  const payload={
+    brand, model:gv('f-model'), year:gv('f-year')||null, type:gv('f-type')||null,
+    km:parseInt(gv('f-km'))||null, plate:gv('f-plate')||null, province:gv('f-province')||null,
+    engine:gv('f-engine')||null, hp:gv('f-hp')||null, description:gv('f-desc')||null,
+    line_id:gv('f-line')||null, contact_name:gv('f-contact')||null,
+    webhook_url:gv('f-webhook')||null,
+    deadline, max_bidders:parseInt(document.getElementById('f-max').value)||5,
+    photo_urls:photoUrls
+  };
+
+  const tid=document.getElementById('edit-truck-id').value;
+  let error;
+  if(tid){ ({error}=await sb.from('trucks').update(payload).eq('id',tid)); }
+  else { ({error}=await sb.from('trucks').insert(payload)); }
+
+  if(error){ showErr('บันทึกไม่สำเร็จ: '+error.message); return; }
+  show('form-ok'); setTimeout(()=>hide('form-ok'),3000);
+  hideAddTruck();
+  await loadTrucks(); renderCustomer(); renderAdminBlocks(); renderDashboard();
+}
+
+async function deleteTruck(tid){
+  if(!confirm('ลบรถคันนี้? ข้อมูลการเสนอราคาจะหายด้วย')) return;
+  await sb.from('trucks').delete().eq('id',tid);
+  await loadTrucks(); renderCustomer(); renderAdminBlocks(); renderDashboard();
+}
+
+function showErr(msg){ const el=document.getElementById('form-err'); el.textContent=msg; el.style.display='block'; }
+function show(id){ const el=document.getElementById(id); if(el) el.style.display='block'; }
+function hide(id){ const el=document.getElementById(id); if(el) el.style.display='none'; }
+function gv(id){ const el=document.getElementById(id); return el?el.value.trim():''; }
+</script>
+</body>
+</html>
