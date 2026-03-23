@@ -226,10 +226,15 @@ code{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--bg);p
 
 <nav class="nav">
   <div class="nav-logo">🚛 <em>ระบบเสนอราคาซื้อรถ</em></div>
+
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('customer',this)">หน้าเสนอราคา</button>
-    <button class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</button>
-    <button class="nav-tab" onclick="checkAdmin(this)">⚙ Admin</button>
+    <button class="nav-tab active" id="btn-customer" onclick="showPage('customer',this)">หน้าเสนอราคา</button>
+    <button class="nav-tab" id="btn-dashboard" style="display:none" onclick="showPage('dashboard',this)">📊 Dashboard</button>
+    <button class="nav-tab" id="btn-admin" style="display:none" onclick="checkAdmin(this)">⚙ Admin</button>
+  </div>
+
+
+
   </div>
 </nav>
 
@@ -358,6 +363,11 @@ if(SUPABASE_URL==='YOUR_SUPABASE_URL'){
 }
 
 window.onload = async()=>{
+  // Show admin tabs only if ?admin in URL
+  if(window.location.search.includes('admin') || window.location.hash.includes('admin')){
+    document.getElementById('btn-dashboard').style.display='flex';
+    document.getElementById('btn-admin').style.display='flex';
+  }
   await loadTrucks();
   subscribeRealtime();
   renderCustomer();
